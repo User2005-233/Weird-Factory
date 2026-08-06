@@ -43,7 +43,7 @@ Assets/_Project/
 
 ---
 
-## 三、全部脚本清单（按文件夹，共 25 个）
+## 三、全部脚本清单（按文件夹，共 30 个）
 
 ---
 
@@ -58,32 +58,31 @@ Assets/_Project/
 
 ---
 
-### 📁 Scripts/Data/ —— 数据定义层（4 个脚本）
+### 📁 Scripts/Data/ —— 数据定义层（3 个脚本）
 
 | 文件 | 类型 | 功能说明 |
 |------|------|----------|
-| `ItemType.cs` | ScriptableObject | 定义一种物品类型。字段：`itemId`(string)、`itemName`(string)、`icon`(Sprite)、`meshPrefab`(GameObject, 传送带上显示的小模型) |
-| `ItemStack.cs` | struct | 物品堆叠值类型。字段：`itemType`(ItemType)、`amount`(int)。含 `+` `-` 运算符重载，`IsEmpty` 属性 |
-| `Recipe.cs` | ScriptableObject | 定义一种加工配方。字段：`recipeId`(string)、`inputs`(ItemStack[])、`outputs`(ItemStack[])、`processTime`(float)、`requiredBuildingType`(string) |
-| `BuildingDefinition.cs` | ScriptableObject | 定义一种建筑类型。字段：`buildingId`(string)、`displayName`(string)、`footprint`(Vector2Int)、`inputDirections`(GridDirection[] 相对方向)、`outputDirections`(GridDirection[] 相对方向)、`prefab`(GameObject)、`previewMaterial`(Material)、`validRecipeIds`(string[]) |
+| `ItemType.cs` | ScriptableObject | 定义一种物品类型。字段：`itemId`(string)、`itemName`(string)、`icon`(Sprite)、`meshPrefab`(GameObject, 传送带上显示的小模型)、`maxStackSize`(int) |
+| `Recipe.cs` | ScriptableObject | 定义一种加工配方。字段：`recipeId`(string)、`inputTypes`(ItemType[] 原料种类)、`inputAmounts`(int[] 对应每种原料数量，数组同下标配对)、`outputTypes`(ItemType[] 产物种类)、`outputAmounts`(int[] 对应每种产物数量)、`processTime`(float)、`requiredBuildingType`(string) |
+| `BuildingDefinition.cs` | ScriptableObject | 定义一种建筑类型。字段：`buildingId`(string)、`displayName`(string)、`footprint`(Vector2Int)、`inputDirections`(GridDirection[] 相对方向，只是哪些面有物理输入口，不分原料种类）、`outputDirections`(GridDirection[] 相对方向)、`prefab`(GameObject)、`previewMaterial`(Material)、`validRecipeIds`(string[]) |
 
 ---
 
-### 📁 Scripts/Building/ —— 建筑系统（11 个脚本）
+### 📁 Scripts/Building/ —— 建筑系统（12 个脚本）
 
 #### 接口（3 个）
 
 | 文件 | 类型 | 功能说明 |
 |------|------|----------|
 | `IDirectionProvider.cs` | interface | 返回建筑当前的 `GridDirection facing` |
-| `IInputPortProvider.cs` | interface | `bool HasInputPort(GridDirection worldDir)` 查询某方向是否有入口；`bool TryInsert(ItemStack item)` 尝试放入物品，返回是否成功 |
-| `IOutputPortProvider.cs` | interface | `bool HasOutputPort(GridDirection worldDir)` 查询某方向是否有出口；`bool TryExtract(out ItemStack item)` 尝试取出物品，返回是否成功 |
+| `IInputPortProvider.cs` | interface | `bool HasInputPort(GridDirection worldDir)` 查询某方向是否有入口；`bool TryInsert(ItemType itemType)` 尝试放入 1 个物品，返回是否成功 |
+| `IOutputPortProvider.cs` | interface | `bool HasOutputPort(GridDirection worldDir)` 查询某方向是否有出口；`bool TryExtract(out ItemType itemType)` 尝试取出 1 个物品，返回是否成功 |
 
 #### 基类（1 个）
 
 | 文件 | 类型 | 功能说明 |
 |------|------|----------|
-| `Building.cs` | abstract MonoBehaviour | 所有建筑的基类。字段：`gridPosition`(GridCoord)、`facing`(GridDirection)、`definition`(BuildingDefinition)。方法：`Initialize(pos,dir)`、`IsInputSide(worldDir)` 和 `IsOutputSide(worldDir)` 根据定义+朝向换算、`abstract OnTick()` |
+| `Building.cs` | abstract MonoBehaviour | 所有建筑的基类。字段：`gridPosition`(GridCoord)、`facing`(GridDirection)、`definition`(BuildingDefinition)、`inputBuffer`/`outputBuffer`(Dictionary<ItemType,int>)。只读属性：`InputBufferView`/`OutputBufferView`(IReadOnlyDictionary)、`IsProcessing`/`ProcessingProgress`(虚属性，供渲染层和UI读取)。方法：`Initialize(pos,dir,def)`、`IsInputSide(worldDir)` 和 `IsOutputSide(worldDir)` 根据定义+朝向换算、`ClearInputBuffer()` 退换原料、`abstract OnTick(float deltaTime)` |
 
 **端口方向换算规则（封装在 Building 基类）**：  
 BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Building 持有实际朝向。  
@@ -95,9 +94,16 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 | 文件 | 类型 | 实现接口 | 功能说明 |
 |------|------|----------|----------|
 | `Extractor.cs` | MonoBehaviour | `IDirectionProvider, IOutputPortProvider` | 开采器。无输入，Tick 时按间隔产出 1 个原材料到内部输出缓冲区，`TryExtract()` 取走 |
-| `Furnace.cs` | MonoBehaviour | `IDirectionProvider, IInputPortProvider, IOutputPortProvider` | 熔炉。单一输入+单一输出，Tick 时检查配方→扣原料→加工计时→输出 |
-| `Assembler.cs` | MonoBehaviour | `IDirectionProvider, IInputPortProvider, IOutputPortProvider` | 组装机。可能有多个入口（对应配方多种原料），Tick 逻辑类似 Furnace 但需检查所有原料充足 |
-| `Storage.cs` | MonoBehaviour | `IDirectionProvider, IInputPortProvider, IOutputPortProvider` | 仓库。纯缓冲存储，无加工逻辑。有最大容量限制 |
+| `Furnace.cs` | MonoBehaviour | `IDirectionProvider, IInputPortProvider, IOutputPortProvider` | 熔炉。一个输入口+一个输出口，统一输入缓冲区（所有入口的东西进同一个仓库）。Tick 时检查配方原料够不够→扣原料→加工计时→输出 |
+| `Assembler.cs` | MonoBehaviour | `IDirectionProvider, IInputPortProvider, IOutputPortProvider` | 组装机。一个输入口+一个输出口，所有入口的东西都进一个**共用输入缓冲区**（Satisfactory 模式），不按原料种类分槽。Tick 时检查共享缓冲区里是否凑够配方需要的所有原料→扣→加工→输出 |
+| `Storage.cs` | MonoBehaviour | `IDirectionProvider, IInputPortProvider, IOutputPortProvider` | 仓库。四向可入可出，共用内部缓冲区（所有入口的东西混在一起存）。不加工，纯缓冲。有最大容量限制 |
+
+**输入输出设计原则（Satisfactory 模式）**：
+
+- 建筑的 `inputDirections` 只表示"物理入口在哪几面"，不限制哪个口吃哪种原料
+- 所有入口送入的物品统一进入一个**共用输入缓冲区**（`Dictionary<ItemType, int>`，按类型合并数量，避免同种物品重复占多个条目）
+- Tick 加工时，检查共用缓冲区里的总量是否 ≥ 配方要求的每种原料量
+- 与 Factorio 的分槽模式（组装机 1 号口绑死铜线、2 号口绑死铁板）不同，这是 Satisfactory / DSP 的共用池模式
 
 #### 建筑 Tick 调度（1 个）
 
@@ -109,13 +115,24 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 | 文件 | 类型 | 功能说明 |
 |------|------|----------|
-| `BuildingRenderer.cs` | MonoBehaviour | 挂在建筑预制体上。读取 `Building` 数据（如加工进度）更新动画状态、粒子特效等 |
+| `BuildingRenderer.cs` | MonoBehaviour | 挂在建筑预制体上。读取 `Building.IsProcessing` 控制 `WorkingIndicator` 显隐+旋转。进度条和物品流动分别由 BuildingInfoUI / BeltRenderer 负责
+
+#### 玩家背包（1 个）
+
+| 文件 | 类型 | 功能说明 |
+|------|------|----------|
+| `PlayerInventory.cs` | MonoBehaviour 单例 | 玩家手持物品背包。内部用 `Dictionary<ItemType, int>` 按类型合并数量。提供 `Add(ItemType, int)`、`Remove(ItemType, int)`、`GetCount(ItemType)`。用途：拆除返还、切换配方退还原料、未来手动拾取 |
 
 #### 建筑注册（1 个）
 
 | 文件 | 类型 | 功能说明 |
 |------|------|----------|
-| `BuildingRegistry.cs` | class（非 MonoBehaviour） | 静态工具类，持有所有 `BuildingDefinition` 的列表。提供 `GetDefinition(string id)` 查找方法。初始化时从 Resources 加载 |
+| `BuildingRegistry.cs` | ScriptableObject | `BuildingRegistry.asset` 单例资产，Inspector 拖入所有 SO 引用。提供 `Init()`(BuildingManager 调一次)、`GetBuilding(id)`、`GetRecipe(id)`、`GetItem(id)` 字典查找方法 |
+
+#### 配方切换流程
+
+- `Building` 基类提供虚方法 `Dictionary<ItemType, int> ClearInputBuffer()`——清空并返还输入缓冲区
+- UI 中点击切换配方 → 调用 `ClearInputBuffer()` → 物品转入 `PlayerInventory` → 设置新 recipeId → 下次 Tick 按新配方加工
 
 ---
 
@@ -123,7 +140,7 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 | 文件 | 类型 | 功能说明 |
 |------|------|----------|
-| `BeltItem.cs` | struct | 传送带上的物品数据。字段：`stack`(ItemStack)、`progress`(float，单位是格子数，非 0~1)。例如 length=3 的段上，progress=2.3 表示在第 3 格内走了 30% |
+| `BeltItem.cs` | struct | 传送带上的物品数据。字段：`itemType`(ItemType)、`progress`(float，单位是格子数，非 0~1)。每个 BeltItem 始终只代表 1 个物品，不堆叠
 | `BeltSegment.cs` | class（非 MonoBehaviour） | 一段**直线**传送带（两点之间无拐弯）。字段：`start`(GridCoord)、`end`(GridCoord)、`direction`(GridDirection)、`length`(int)、`speed`(float)、`items`(List<BeltItem>)、`upstreamProvider`(IOutputPortProvider)、`downstreamReceiver`(IInputPortProvider)。方法：`TryPushItem(item)` 尝试从头部推入、`Tick(deltaTime)` 推进所有物品（反向遍历） |
 | `BeltLine.cs` | class（非 MonoBehaviour） | 由多个 BeltSegment 首尾相连组成的完整传送带线路。字段：`segments`(List<BeltSegment>)、`provider`(IOutputPortProvider)、`receiver`(IInputPortProvider)。方法：`AddSegment()`、`Tick(deltaTime)` 从尾到头依次推进每个段、`ConnectToPorts()` 自动寻找首尾连接的建筑端口 |
 | `BeltRenderer.cs` | MonoBehaviour | 挂在场景中某个空物体上。持有 `BeltLine` 引用，负责渲染所有传送带模型（直段/弯角）和物品模型。物品用 `Graphics.DrawMeshInstanced` 或对象池渲染 |
@@ -142,6 +159,33 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
       如果被堵塞（下一段满 / receiver 满）：
         停止推进，形成背压
 ```
+
+**端口自动连接逻辑（BeltLine.ConnectToPorts）：**
+
+```
+// 只在放置确认时调用一次
+
+起点：
+  遍历起点周围 4 格（GridDirection.North/East/South/West）
+  每格 → GridManager.GetCell() → 是 Building？
+    → 拿到 building 引用，调 building.HasOutputPort(从建筑指向起点的方向)
+      → true → beltLine.provider = building（传送带从它取货）
+
+终点：
+  遍历终点周围 4 格
+  每格 → GridManager.GetCell() → 是 Building？
+    → 拿到 building 引用，调 building.HasInputPort(从终点指向建筑的方向)
+      → true → beltLine.receiver = building（传送带向它交货）
+```
+
+**运行时取货/交货（BeltLine.Tick 每帧做）：**
+
+```
+取货：if provider != null && TryExtract(out item) → 塞入第一个 segment 头部
+交货：物品推到最后一个 segment 终点 → TryInsert(item) → 成功则丢弃，失败则卡住
+```
+
+**合并器/分流器**：MVP 不包含。验收链条是单线的不需要。后续作为独立 1×1 建筑追加，不影响现有传送带系统。
 
 ---
 
@@ -189,8 +233,8 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 | 文件名 | 对应类 | 数据内容 |
 |--------|--------|----------|
-| `SmeltIron.asset` | Recipe | 输入=`[铁矿石×1]`，输出=`[铁板×1]`，耗时=1.5s，建筑=furnace |
-| `CraftGear.asset` | Recipe | 输入=`[铁板×2]`，输出=`[齿轮×1]`，耗时=2.0s，建筑=assembler |
+| `SmeltIron.asset` | Recipe | 输入=铁矿石×1，输出=铁板×1，耗时=1.5s，建筑=furnace |
+| `CraftGear.asset` | Recipe | 输入=铁板×2，输出=齿轮×1，耗时=2.0s，建筑=assembler |
 
 ### Buildings/ （4 个）
 
@@ -198,7 +242,7 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 |--------|--------|----------|
 | `Extractor.asset` | BuildingDefinition | 占地=1×1，出口=South，无入口，预制体=Extractor.prefab |
 | `Furnace.asset` | BuildingDefinition | 占地=1×1，入口=North，出口=South，配方=`smelt_iron` |
-| `Assembler.asset` | BuildingDefinition | 占地=2×2，入口=`[North, West]`，出口=`[South, East]`，配方=`craft_gear` |
+| `Assembler.asset` | BuildingDefinition | 占地=2×2，入口=North，出口=South，配方=`craft_gear` |
 | `Storage.asset` | BuildingDefinition | 占地=2×2，入口=`[North, East, South, West]`，出口=`[North, East, South, West]`（四向通用） |
 
 ---
@@ -211,14 +255,14 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 | 预制体 | 形状描述 | 挂载的脚本 |
 |--------|----------|------------|
-| `Extractor.prefab` | 一个小底座 + 一个钻头（朝下的锥体） | `Extractor.cs`, `BuildingRenderer.cs` |
-| `Furnace.prefab` | 一个方形箱子，侧面发光孔 | `Furnace.cs`, `BuildingRenderer.cs` |
-| `Assembler.prefab` | 2×2 大平台，上面有机械臂 | `Assembler.cs`, `BuildingRenderer.cs` |
-| `Storage.prefab` | 2×2 的大箱子/仓库 | `Storage.cs`, `BuildingRenderer.cs` |
+| `Extractor.prefab` | 一个小底座 + 一个钻头（朝下的锥体） | `Extractor.cs`, `BuildingPreview.cs`, `BuildingRenderer.cs` |
+| `Furnace.prefab` | 一个方形箱子，侧面发光孔 | `Furnace.cs`, `BuildingPreview.cs`, `BuildingRenderer.cs` |
+| `Assembler.prefab` | 2×2 大平台，上面有机械臂 | `Assembler.cs`, `BuildingPreview.cs`, `BuildingRenderer.cs` |
+| `Storage.prefab` | 2×2 的大箱子/仓库 | `Storage.cs`, `BuildingPreview.cs`, `BuildingRenderer.cs` |
 | `Belt_Straight.prefab` | 1×0.5 的长条平台（类似跑步机） | 无脚本，纯视觉 |
 | `Belt_Curve.prefab` | 1×1 的 L 形转弯平台 | 无脚本，纯视觉 |
 | `Belt_Item.prefab` | 一个很小的方块/球，代表传送带上的物品 | 无脚本（或用对象池管理） |
-| `BuildPreview.prefab` | 任意建筑模型替换为半透明材质 | `BuildPreview.cs`（动态赋材质） |
+| `BuildPreview.prefab` | 任意建筑模型替换为半透明材质 | `BuildingPreview.cs`（实际实现：BuildingPreview 组件直接挂在建筑 prefab 上，无需单独预览 prefab） |
 
 ### 材质（至少 4 个）
 
@@ -251,19 +295,19 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 ## 六、分阶段实现计划
 
-### 阶段 0 —— 极简原型（目标：开采器→直传送带→仓库 跑通）
+### 阶段 0 —— 极简原型（目标：开采器→直传送带→仓库 跑通） ✅ 完成
 
 > 验收标准：Console 日志输出物品沿传送带移动，仓库计数递增
 
-| 步骤 | 要做的 |
-|------|--------|
-| 0.1 | 创建目录结构 + `GridCoord.cs` + `GridDirection.cs` |
-| 0.2 | `GridCell.cs` + `GridManager.cs` |
-| 0.3 | `ItemType.cs` ScriptableObject + `ItemStack.cs` |
-| 0.4 | `BeltItem.cs` + `BeltSegment.cs` + `BeltLine.cs` — 纯数据推物品逻辑，不渲染 |
-| 0.5 | `Building.cs` 基类 + `Extractor.cs` + `Storage.cs`（简化版，不用接口） |
-| 0.6 | `BuildingManager.cs` — Tick 调度 |
-| 0.7 | `BuildController.cs` — 最简单的输入：按 1 放开采器，按 2 放仓库，按 3 画直线 |
+| 步骤 | 要做的 | 状态 |
+|------|--------|------|
+| 0.1 | 创建目录结构 + `GridCoord.cs` + `GridDirection.cs` | ✅ |
+| 0.2 | `GridCell.cs` + `GridManager.cs` | ✅ |
+| 0.3 | `ItemType.cs` ScriptableObject | ✅ |
+| 0.4 | `BeltItem.cs` + `BeltSegment.cs` + `BeltLine.cs` — 纯数据推物品逻辑，不渲染 | ✅ |
+| 0.5 | `Building.cs` 基类 + `Extractor.cs` + `Storage.cs` | ✅ |
+| 0.6 | `BuildingManager.cs` — Tick 调度 | ✅ |
+| 0.7 | `BuildController.cs` — 最简单的输入：按 1 放开采器，按 2 放仓库 | ✅ (建筑放置完成，传送带放置待做) |
 
 **此阶段不涉及**：传送带渲染、UI、接口、多段折线、拐弯
 
@@ -280,16 +324,16 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 ---
 
-### 阶段 2 —— 建筑端口 + 接口 + 配方
+### 阶段 2 —— 建筑端口 + 接口 + 配方 ✅ 完成
 
-| 步骤 | 要做的 |
-|------|--------|
-| 2.1 | `IInputPortProvider.cs` + `IOutputPortProvider.cs` + `IDirectionProvider.cs` |
-| 2.2 | 改造 `Extractor`/`Storage` 实现接口 |
-| 2.3 | `Recipe.cs` ScriptableObject + 创建 2 个配方 asset |
-| 2.4 | `Furnace.cs` + `Assembler.cs` — 配方驱动 Tick |
-| 2.5 | `BuildingDefinition.cs` ScriptableObject + 创建 4 个建筑定义 asset |
-| 2.6 | `BuildingRegistry.cs` — 建筑注册查找 |
+| 步骤 | 要做的 | 状态 |
+|------|--------|------|
+| 2.1 | `IInputPortProvider.cs` + `IOutputPortProvider.cs` + `IDirectionProvider.cs` | ✅ |
+| 2.2 | 改造 `Extractor`/`Storage` 实现接口 | ✅ |
+| 2.3 | `Recipe.cs` ScriptableObject + 创建 2 个配方 asset | ✅ |
+| 2.4 | `Furnace.cs` + `Assembler.cs` — 配方驱动 Tick | ✅ |
+| 2.5 | `BuildingDefinition.cs` ScriptableObject + 创建 4 个建筑定义 asset | ✅ |
+| 2.6 | `BuildingRegistry.cs` — 建筑注册查找 | ✅ |
 
 ---
 
@@ -305,13 +349,13 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 ### 阶段 4 —— 打磨
 
-| 步骤 | 要做的 |
-|------|--------|
-| 4.1 | 传送带拆除（右键点传送带格子） |
-| 4.2 | 冲突检测完善（不能覆盖已有建筑） |
-| 4.3 | `CameraController.cs` — 缩放、平移、边缘推动 |
-| 4.4 | `BuildingRenderer.cs` — 建筑动画状态 |
-| 4.5 | 测试关卡：手动布置一个完整链（矿脉+熔炉+组装机+仓库），跑通成就 |
+| 步骤 | 要做的 | 状态 |
+|------|--------|------|
+| 4.1 | 传送带拆除（右键点传送带格子） | |
+| 4.2 | 冲突检测完善（不能覆盖已有建筑） | ✅ (CanPlaceAt 支持 footprint) |
+| 4.3 | `CameraController.cs` — 缩放、平移、边缘推动 | ✅ |
+| 4.4 | `BuildingRenderer.cs` — 建筑动画状态 | ✅ (读取 IsProcessing → WorkingIndicator 显隐+旋转) |
+| 4.5 | 测试关卡：手动布置一个完整链（矿脉+熔炉+组装机+仓库），跑通成就 | |
 
 ---
 
@@ -323,12 +367,12 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 1. 按热键 1/2/3/4 → BuildController.currentMode = PlaceBuilding
 2. 实例化 BuildPreview 对象，半透明
 3. 每帧 Update：
-   a. 从鼠标发射 Raycast 打到 Y=0 的 Plane
-   b. 交点取整 → GridCoord
-   c. BuildPreview 吸附到该坐标中心
-   d. 检查 GridManager.CanPlaceAt() → 绿/红色
-4. 左键点击 → GridManager.PlaceBuilding() → Building.Initialize()
-5. 右键 → 退出模式
+    a. 从鼠标发射 Raycast 打到 Y=0 的 Plane
+    b. 交点取整 → GridCoord
+    c. BuildingPreview 吸附到该坐标中心（根据 footprint 偏移）
+    d. 检查 GridManager.CanPlaceAt(coord, definition) → 绿/红色
+ 4. 左键点击 → GridManager.PlaceBuilding(coord, definition, building) → building.Initialize()
+ 5. 右键 → 退出模式
 ```
 
 ### 传送带放置模式（多点折线）
@@ -404,12 +448,12 @@ BuildingDefinition 存的是相对方向（"建筑的正面是入口"），Build
 
 ### 脚本检查清单
 
-- [ ] Core/ —— 4 个
-- [ ] Data/ —— 4 个
-- [ ] Building/ —— 11 个
-- [ ] Conveyor/ —— 4 个
-- [ ] Build/ —— 3 个
-- [ ] Camera/ —— 1 个
+- [x] Core/ —— 4 个
+- [x] Data/ —— 3 个
+- [x] Building/ —— 12/12 个 ✅
+- [x] Conveyor/ —— 3/4 个（剩 BeltRenderer）
+- [x] Build/ —— 3 个
+- [x] Camera/ —— 1 个
 - [ ] UI/ —— 3 个
-- [ ] **总计：30 个文件**
+- [x] **已完成：28/30 个文件**
 

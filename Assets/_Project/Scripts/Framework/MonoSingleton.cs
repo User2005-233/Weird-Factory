@@ -12,7 +12,15 @@ public abstract class MonoSingleton<T> : MonoBehaviour where T : MonoSingleton<T
             if (_isQuitting)
                 return null;
             if (_instance == null)
+            {
                 _instance = FindFirstObjectByType<T>();
+                if (_instance == null)
+                {
+                    var go = new GameObject(typeof(T).Name);
+                    _instance = go.AddComponent<T>();
+                    DontDestroyOnLoad(go);
+                }
+            }
             return _instance;
         }
     }

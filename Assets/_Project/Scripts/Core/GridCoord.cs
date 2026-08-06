@@ -1,4 +1,4 @@
-
+using System;
 
 public struct GridCoord
 {
@@ -28,8 +28,6 @@ public struct GridCoord
         return obj is GridCoord coord && this == coord;
     }
 
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(x, z);
-    }
+    public override int GetHashCode() => HashCode.Combine(x, z);
+    
 }

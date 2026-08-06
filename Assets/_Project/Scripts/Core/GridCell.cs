@@ -3,12 +3,13 @@
 public class GridCell
 {
     public enum OccupationType {
-        empty,
-        building,
-        belt
+        Empty,
+        Building,
+        Belt
     }
 
     public GridCoord gridCoord;
     public OccupationType occupationType;
     public object? building;
+    public object? beltSegment;
 }

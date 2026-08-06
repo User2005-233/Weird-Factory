@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2404ea3e7e8d7d4b8fc3e06d547b75a, type: 3}
+  m_Name: BuildingRegistry
+  m_EditorClassIdentifier: 
+  buildingDefinitions:
+  - {fileID: 11400000, guid: 3fffe5efb41e9e14984b90e6798fe342, type: 2}
+  - {fileID: 11400000, guid: a4ee49fd2089d5349a37c9c978abc743, type: 2}
+  - {fileID: 11400000, guid: cca083ee903433d48a09a30a72db93df, type: 2}
+  - {fileID: 11400000, guid: e599e48b5581ebf4c8fbc302e10f7742, type: 2}
+  recipes:
+  - {fileID: 11400000, guid: b015c0ff82127b64f9513dee52e20a7e, type: 2}
+  - {fileID: 11400000, guid: 45723532e18178646b9795228b1d4446, type: 2}
+  itemTypes:
+  - {fileID: 11400000, guid: 0654d13967f083b478da1875e71f591d, type: 2}
+  - {fileID: 11400000, guid: 07ce35961aa84de48ae11b173fba1d06, type: 2}
+  - {fileID: 11400000, guid: 2cf05287a94a0234ebba1d4fe301977c, type: 2}
